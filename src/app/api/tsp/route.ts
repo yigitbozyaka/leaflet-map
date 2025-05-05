@@ -1,5 +1,7 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
 import { NextResponse } from 'next/server';
-// @ts-ignore
+// @ts-expect-error nolib
 import * as osrmTextInstructions from 'osrm-text-instructions';
 import axios from 'axios';
 
@@ -336,8 +338,8 @@ export async function GET() {
         let totalDistance = 0;
         let totalTime = 0;
         let totalCost = 0;
-        let geometry: [number, number][] = [];
-        let instructions: { text: string; geometry: [number, number][] }[] = [];
+        const geometry: [number, number][] = [];
+        const instructions: { text: string; geometry: [number, number][] }[] = [];
         
         for (let i = 0; i < optimizedRoute.length - 1; i++) {
             const segment = matrix[optimizedRoute[i]][optimizedRoute[i + 1]];
