@@ -7,6 +7,7 @@ import { MapContainer, TileLayer, Marker, Polyline, Popup } from 'react-leaflet'
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import Image from 'next/image';
+import TrafficLayer from './TrafficLayer';
 
 type Location = { name: string; lat: number; lon: number };
 type Geometry = [number, number][];
@@ -26,9 +27,11 @@ export default function TSPMap() {
   const [userPosition, setUserPosition] = useState<[number, number] | null>(null);
   const [isPanelOpen, setIsPanelOpen] = useState(true);
   const [geometryIndex, setGeometryIndex] = useState(0);
-  const [provider, setProvider] = useState<"local" | "tomtom">("tomtom");
+  const [provider, setProvider] = useState<"local" | "tomtom">("local");
+  const [bearing, setBearing] = useState(0);
   const mapRef = useRef<L.Map | null>(null);
   const simulationIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const [showTraffic, setShowTraffic] = useState(false);
 
   useEffect(() => {
     const fetchRoute = async () => {
@@ -52,6 +55,8 @@ export default function TSPMap() {
     fetchRoute();
   }, [provider]);
 
+
+
   const startNavigation = () => {
     if (!data) return;
     setIsNavigating(true);
@@ -60,7 +65,7 @@ export default function TSPMap() {
     setUserPosition(data.geometry[0]);
 
     const speed = 10; // todo
-    const intervalMs = 1000;
+    const intervalMs = 1500;
 
     simulationIntervalRef.current = setInterval(() => {
       setGeometryIndex((prevIndex) => {
@@ -70,10 +75,12 @@ export default function TSPMap() {
         }
 
         const nextIndex = prevIndex + 1;
-        setUserPosition(data.geometry[nextIndex]);
+        const nextPosition = data.geometry[nextIndex];
+        setUserPosition(nextPosition);
 
-        if (mapRef.current) {
-          mapRef.current.setView(data.geometry[nextIndex], 15);
+        if (prevIndex >= 0) {
+          const newBearing = getBearing(data.geometry[prevIndex], nextPosition);
+          setBearing((newBearing - 50 + 360) % 360);
         }
 
         checkStepProgress(nextIndex);
@@ -82,6 +89,18 @@ export default function TSPMap() {
       });
     }, intervalMs);
   };
+
+  useEffect(() => {
+    if (!userPosition || !mapRef.current) return;
+
+    const offset = offsetPosition(userPosition, bearing, 0.0008);
+    mapRef.current.setView(offset, 17, {
+      animate: true,
+      duration: 1.0,
+      easeLinearity: 0.25,
+    });
+  }, [userPosition, bearing]);
+
 
   const stopNavigation = () => {
     setIsNavigating(false);
@@ -109,23 +128,27 @@ export default function TSPMap() {
   const checkStepProgress = (currentGeometryIndex: number) => {
     if (!data || currentGeometryIndex < 0) return;
 
-    let pointsPassedSoFar = 0;
+    const totalPoints = data.geometry.length;
+    const currentProgress = currentGeometryIndex / totalPoints;
+
     let newStepIndex = 0;
+    let accumulatedPoints = 0;
 
     for (let i = 0; i < data.instructions.length; i++) {
-      const stepGeometryLength = data.instructions[i].geometry.length;
+      const stepGeometry = data.instructions[i].geometry;
+      accumulatedPoints += stepGeometry.length;
 
-      if (pointsPassedSoFar + stepGeometryLength > currentGeometryIndex) {
+      if (accumulatedPoints > currentGeometryIndex) {
         newStepIndex = i;
         break;
       }
 
-      pointsPassedSoFar += stepGeometryLength;
-      newStepIndex = i + 1;
+      if (i === data.instructions.length - 1) {
+        newStepIndex = i;
+      }
     }
 
-    // only update the step if it's changed
-    if (newStepIndex !== currentStep && newStepIndex < data.instructions.length) {
+    if (newStepIndex !== currentStep) {
       setCurrentStep(newStepIndex);
     }
   };
@@ -133,6 +156,29 @@ export default function TSPMap() {
   const togglePanel = () => {
     setIsPanelOpen((prev) => !prev);
   };
+
+  function getBearing(from: [number, number], to: [number, number]): number {
+    const [lat1, lon1] = from.map((deg) => deg * Math.PI / 180);
+    const [lat2, lon2] = to.map((deg) => deg * Math.PI / 180);
+    const y = Math.sin(lon2 - lon1) * Math.cos(lat2);
+    const x = Math.cos(lat1) * Math.sin(lat2) -
+      Math.sin(lat1) * Math.cos(lat2) * Math.cos(lon2 - lon1);
+    return (Math.atan2(y, x) * 180 / Math.PI + 360) % 360;
+  }
+
+  function offsetPosition(position: [number, number], bearing: number, distance = 0.0008): [number, number] {
+    const R = 6378.1;
+    const brng = (bearing * Math.PI) / 180;
+    const lat1 = (position[0] * Math.PI) / 180;
+    const lon1 = (position[1] * Math.PI) / 180;
+
+    const lat2 = Math.asin(Math.sin(lat1) * Math.cos(distance / R) +
+      Math.cos(lat1) * Math.sin(distance / R) * Math.cos(brng));
+    const lon2 = lon1 + Math.atan2(Math.sin(brng) * Math.sin(distance / R) * Math.cos(lat1),
+      Math.cos(distance / R) - Math.sin(lat1) * Math.sin(lat2));
+
+    return [(lat2 * 180) / Math.PI, (lon2 * 180) / Math.PI];
+  }
 
   if (!data) return <div className="bg-amber-50 flex min-h-screen items-center justify-center">
     <Image className='animate-pulse' src="/logo.png" width={160} height={160} alt='ArasKargo' />
@@ -166,6 +212,13 @@ export default function TSPMap() {
           )}
 
           <button
+            onClick={() => setShowTraffic(!showTraffic)}
+            className="cursor-pointer duration-300 bg-[#e00612] text-[#103578] px-4 py-2 rounded-lg font-semibold text-sm hover:bg-[#E5D5C5]"
+          >
+            {showTraffic ? "Hide Traffic" : "Show Traffic"}
+          </button>
+
+          <button
             onClick={changeProvider}
             className="cursor-pointer duration-300 bg-[#e00612] text-[#103578] px-4 py-2 rounded-lg font-semibold text-sm hover:bg-[#E5D5C5]"
           >
@@ -186,7 +239,7 @@ export default function TSPMap() {
         className={`absolute top-36 md:top-16 right-0 z-[999] bg-[#103578] text-white p-4 rounded-bl-lg max-w-full md:max-w-sm max-h-[calc(100vh-80px)] overflow-y-auto transition-transform duration-300 ${isPanelOpen ? 'translate-x-0' : 'translate-x-full'
           } md:translate-x-0`}
       >
-        <h2 className="font-bold text-lg">Total Cost: {totalCost?.toFixed(2)}</h2>
+        <h2 className="font-bold text-lg">Total Cost: {totalCost || NaN}</h2>
         <div className="my-2">
           <h3 className="font-bold underline">Route Path</h3>
           <ul className="flex flex-row flex-wrap gap-2">
@@ -220,6 +273,7 @@ export default function TSPMap() {
         center={[route[0].lat, route[0].lon]}
         zoom={13}
         zoomControl={false}
+        ref={mapRef}
         style={{ height: '100vh', width: '100%' }}
       >
         <TileLayer
@@ -227,6 +281,15 @@ export default function TSPMap() {
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
 
+        {/* Traffic Layer */}
+        {showTraffic && geometry && (
+          <TrafficLayer
+            enabled={showTraffic}
+            geometry={geometry}
+          />
+        )}
+
+        {/* Route Line */}
         <Polyline
           positions={geometry}
           color="#0066FF"
@@ -235,6 +298,7 @@ export default function TSPMap() {
           smoothFactor={1}
         />
 
+        {/* Current Step Highlight */}
         {isNavigating && instructions[currentStep]?.geometry.length > 0 && (
           <Polyline
             positions={instructions[currentStep].geometry}
@@ -245,6 +309,7 @@ export default function TSPMap() {
           />
         )}
 
+        {/* Markers */}
         {route.map((loc, i) => (
           <Marker
             key={i}
@@ -260,13 +325,15 @@ export default function TSPMap() {
           </Marker>
         ))}
 
+        {/* User Position Marker */}
         {userPosition && (
           <Marker
             position={userPosition}
-            icon={new L.Icon({
-              iconUrl: '/user-icon.png',
-              iconSize: [24, 24],
-              iconAnchor: [12, 12],
+            icon={L.divIcon({
+              className: '',
+              html: `<img src="/user-icon.png" style="transform: rotate(${bearing}deg); width: 28px; height: 28px;" />`,
+              iconSize: [32, 32],
+              iconAnchor: [14, 14],
             })}
           >
             <Popup>You are here</Popup>
@@ -275,20 +342,4 @@ export default function TSPMap() {
       </MapContainer>
     </div>
   );
-}
-
-// ai made it idk
-export function haversineDistance(coord1: [number, number], coord2: [number, number]): number {
-  const [lat1, lon1] = coord1;
-  const [lat2, lon2] = coord2;
-  const R = 6371e3;
-  const φ1 = (lat1 * Math.PI) / 180;
-  const φ2 = (lat2 * Math.PI) / 180;
-  const Δφ = ((lat2 - lat1) * Math.PI) / 180;
-  const Δλ = ((lon2 - lon1) * Math.PI) / 180;
-
-  const a = Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
-    Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  return R * c;
 }

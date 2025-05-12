@@ -104,8 +104,9 @@ export async function GET() {
 
             return {
                 route: orderedLocations,
-                totalCost: (route.summary?.lengthInMeters || 0) / 1000, // Distance in km
-                travelTime: (route.summary?.travelTimeInSeconds || 0) / 60, // Time in minutes
+                totalCost: ((route.summary?.lengthInMeters || 0) / 1000) * 0.4 + 
+                          ((route.summary?.travelTimeInSeconds || 0) / 60) * 0.6,
+                travelTime: (route.summary?.travelTimeInSeconds || 0) / 60,
                 geometry: fullGeometry,
                 instructions,
             };

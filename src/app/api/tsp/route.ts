@@ -72,7 +72,7 @@ class TTLCache<T> {
 }
 
 const trafficCache = new TTLCache<number>(15);
-const trafficSpeedCache = new TTLCache<{ currentSpeed: number; freeFlowSpeed: number }>(15);
+export const trafficSpeedCache = new TTLCache<{ currentSpeed: number; freeFlowSpeed: number }>(15);
 const routeCache = new TTLCache<Segment>(30);
 
 const fetchDistanceWithSteps = async (from: Location, to: Location): Promise<Segment> => {
@@ -127,7 +127,7 @@ const fetchDistanceWithSteps = async (from: Location, to: Location): Promise<Seg
     }
 };
 
-const fetchTomTomTrafficData = async (locations: Location[]): Promise<void> => {
+export const fetchTomTomTrafficData = async (locations: Location[]): Promise<void> => {
     try {
         const apiKey = process.env.TOMTOM_API_KEY;
         if (!apiKey) {
@@ -141,7 +141,7 @@ const fetchTomTomTrafficData = async (locations: Location[]): Promise<void> => {
                 return;
             }
 
-            const url = `https://api.tomtom.com/traffic/services/5/flowSegmentData/absolute/10/json?key=${apiKey}&point=${lat},${lon}`;
+            const url = `https://api.tomtom.com/traffic/services/4/flowSegmentData/absolute/10/json?key=${apiKey}&point=${lat},${lon}`;
             const res = await axios.get(url, {
                 headers: { 'Content-Type': 'application/json' },
                 timeout: 5000
@@ -357,7 +357,7 @@ export async function GET() {
                 ...locations[i],
                 index: i
             })),
-            totalCost: totalCost.toFixed(2),
+            totalCost: Number(totalCost.toFixed(2)),
             metrics: {
                 totalDistance: totalDistance.toFixed(2) + " km",
                 totalTime: totalTime.toFixed(2) + " minutes",
