@@ -3,7 +3,7 @@
 import { NextResponse } from 'next/server';
 // @ts-expect-error nolib
 import * as osrmTextInstructions from 'osrm-text-instructions';
-import axios from 'axios';
+import { trafficSpeedCache, trafficCache, routeCache, fetchTomTomTrafficData } from '@/lib/cache';
 
 type Location = { name: string; lat: number; lon: number };
 
@@ -29,51 +29,6 @@ const WEIGHTS = {
     distance: 0.4,
     trafficTime: 0.6,
 };
-
-interface CacheEntry<T> {
-    value: T;
-    timestamp: number;
-}
-
-class TTLCache<T> {
-    private cache = new Map<string, CacheEntry<T>>();
-    private ttl: number;
-
-    constructor(ttlMinutes: number = 15) {
-        this.ttl = ttlMinutes * 60 * 1000;
-    }
-
-    set(key: string, value: T): void {
-        this.cache.set(key, {
-            value,
-            timestamp: Date.now()
-        });
-    }
-
-    get(key: string): T | undefined {
-        const entry = this.cache.get(key);
-        if (!entry) return undefined;
-        
-        if (Date.now() - entry.timestamp > this.ttl) {
-            this.cache.delete(key);
-            return undefined;
-        }
-        
-        return entry.value;
-    }
-
-    has(key: string): boolean {
-        return this.get(key) !== undefined;
-    }
-
-    clear(): void {
-        this.cache.clear();
-    }
-}
-
-const trafficCache = new TTLCache<number>(15);
-export const trafficSpeedCache = new TTLCache<{ currentSpeed: number; freeFlowSpeed: number }>(15);
-const routeCache = new TTLCache<Segment>(30);
 
 const fetchDistanceWithSteps = async (from: Location, to: Location): Promise<Segment> => {
     const cacheKey = `route:${from.lat},${from.lon}:${to.lat},${to.lon}`;
@@ -124,49 +79,6 @@ const fetchDistanceWithSteps = async (from: Location, to: Location): Promise<Seg
     } catch (error) {
         console.error("Error fetching route:", error);
         return { distance: Infinity, trafficTime: Infinity, geometry: [], instructions: [] };
-    }
-};
-
-export const fetchTomTomTrafficData = async (locations: Location[]): Promise<void> => {
-    try {
-        const apiKey = process.env.TOMTOM_API_KEY;
-        if (!apiKey) {
-            console.warn('TOMTOM_API_KEY not found in environment variables');
-            return;
-        }
-
-        const promises = locations.map(async ({ lat, lon }) => {
-            const cacheKey = `traffic:${lat},${lon}`;
-            if (trafficSpeedCache.has(cacheKey)) {
-                return;
-            }
-
-            const url = `https://api.tomtom.com/traffic/services/4/flowSegmentData/absolute/10/json?key=${apiKey}&point=${lat},${lon}`;
-            const res = await axios.get(url, {
-                headers: { 'Content-Type': 'application/json' },
-                timeout: 5000
-            }).catch(err => {
-                console.error(`TomTom API error for ${lat},${lon}:`, err.message);
-                return null;
-            });
-
-            if (!res || !res.data) return;
-            
-            const flowData = res.data.flowSegmentData;
-            if (flowData && typeof flowData.currentSpeed === 'number' && typeof flowData.freeFlowSpeed === 'number') {
-                trafficSpeedCache.set(cacheKey, {
-                    currentSpeed: flowData.currentSpeed,
-                    freeFlowSpeed: flowData.freeFlowSpeed,
-                });
-                console.log(`Cached TomTom traffic speed for ${lat},${lon}`);
-            } else {
-                console.warn(`No valid traffic data for ${lat},${lon}`);
-            }
-        });
-
-        await Promise.all(promises);
-    } catch (error) {
-        console.error('Error fetching TomTom traffic data:', error);
     }
 };
 

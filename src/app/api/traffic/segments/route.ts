@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { trafficSpeedCache, fetchTomTomTrafficData } from '../../tsp/route';
+import { trafficSpeedCache, fetchTomTomTrafficData } from '@/lib/cache';
 
 export async function POST(request: Request) {
   try {
@@ -32,19 +32,19 @@ function processGeometryIntoSegments(geometry: [number, number][]): { positions:
     const midPoint = segmentPoints[Math.floor(segmentPoints.length / 2)];
     
     const cacheKey = `traffic:${midPoint[0]},${midPoint[1]}`;
-    console.log('Looking up traffic data for key:', cacheKey);
     const trafficData = trafficSpeedCache.get(cacheKey);
-    console.log('Found traffic data:', trafficData);
     
-    let color = '#4CAF50';
+    let color = '#4CAF50'; // Green (good traffic)
     if (trafficData) {
       const speedRatio = trafficData.currentSpeed / trafficData.freeFlowSpeed;
-      console.log('Speed ratio:', speedRatio);
+      
       if (speedRatio < 0.5) {
-        color = '#F44336';
+        color = '#F44336'; // Red (heavy traffic)
       } else if (speedRatio < 0.8) {
-        color = '#FFC107';
+        color = '#FFC107'; // Yellow (moderate traffic)
       }
+    } else {
+      console.warn('No traffic data found for segment at:', midPoint);
     }
 
     segments.push({
