@@ -14,8 +14,6 @@ export async function POST(request: Request) {
     
     await fetchTomTomTrafficData(locations);
     
-    const cacheEntries = Array.from(trafficSpeedCache['cache'].entries());
-
     const segments = processGeometryIntoSegments(geometry);
 
     return NextResponse.json({ segments });

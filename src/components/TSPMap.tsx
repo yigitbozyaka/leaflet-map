@@ -245,7 +245,7 @@ export default function TSPMap() {
           <ul className="flex flex-row flex-wrap gap-2">
             {route.map((loc, i) => (
               <li className="flex flex-row justify-center gap-1 items-center" key={i}>
-                <img src="/marker-icon.png" className="w-3 h-4" alt="marker" />
+                <Image src="/marker-icon.png" width={12} height={16} alt="marker" />
                 <span className="text-sm font-semibold">{loc.name}</span>
                 {i < route.length - 1 && <span>→</span>}
               </li>

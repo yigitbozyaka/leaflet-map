@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
 import { Polyline } from 'react-leaflet';
-import L from 'leaflet';
 
 interface TrafficLayerProps {
   enabled: boolean;
