@@ -27,7 +27,7 @@ export default function TSPMap() {
   const [userPosition, setUserPosition] = useState<[number, number] | null>(null);
   const [isPanelOpen, setIsPanelOpen] = useState(true);
   const [geometryIndex, setGeometryIndex] = useState(0);
-  const [provider, setProvider] = useState<"local" | "tomtom">("local");
+  const [provider, setProvider] = useState<"local" | "tomtom">("tomtom");
   const [bearing, setBearing] = useState(0);
   const mapRef = useRef<L.Map | null>(null);
   const simulationIntervalRef = useRef<NodeJS.Timeout | null>(null);
