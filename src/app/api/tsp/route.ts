@@ -203,15 +203,15 @@ const twoOptImprovement = (route: number[], matrix: Segment[][]): number[] => {
 
 export async function GET() {
     try {
-        console.log("Starting TSP optimization...");
-        const startTime = Date.now();
+        //console.log("Starting TSP optimization...");
+        //const startTime = Date.now();
 
         await fetchTomTomTrafficData(locations);
-        console.log(`Traffic data fetched in ${(Date.now() - startTime) / 1000} seconds`);
+        //console.log(`Traffic data fetched in ${(Date.now() - startTime) / 1000} seconds`);
         
         const n = locations.length;
         
-        console.log("Building distance and time matrix...");
+        //console.log("Building distance and time matrix...");
         const matrix: Segment[][] = Array.from({ length: n }, () =>
             Array.from({ length: n }, () => ({
                 distance: Infinity,
@@ -239,12 +239,12 @@ export async function GET() {
                 })
             )
         );
-        console.log(`Matrix built in ${(Date.now() - startTime) / 1000} seconds`);
+        //console.log(`Matrix built in ${(Date.now() - startTime) / 1000} seconds`);
         
-        console.log("Generating initial route using Nearest Neighbor...");
+        //console.log("Generating initial route using Nearest Neighbor...");
         const initialRoute = nearestNeighborRoute(matrix);
         
-        console.log("Optimizing route using 2-opt algorithm...");
+        //console.log("Optimizing route using 2-opt algorithm...");
         const optimizedRoute = twoOptImprovement(initialRoute, matrix);
         
         let totalDistance = 0;
@@ -262,7 +262,7 @@ export async function GET() {
             instructions.push(...segment.instructions);
         }
         
-        console.log(`Route optimization completed in ${(Date.now() - startTime) / 1000} seconds`);
+        //console.log(`Route optimization completed in ${(Date.now() - startTime) / 1000} seconds`);
         
         return NextResponse.json({
             route: optimizedRoute.map(i => ({
@@ -276,7 +276,14 @@ export async function GET() {
                 totalCost: totalCost.toFixed(2)
             },
             geometry,
-            instructions
+            instructions,
+            segments: optimizedRoute.slice(0, -1).map((i, index) => {
+                const segment = matrix[i][optimizedRoute[index + 1]];
+                return {
+                    distance: segment.distance,
+                    trafficTime: segment.trafficTime
+                };
+            })
         });
     } catch (error) {
         console.error("TSP optimization failed:", error);

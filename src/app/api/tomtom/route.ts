@@ -29,7 +29,7 @@ export async function GET() {
                 },
             };
 
-            console.log('TomTom optimize request:', JSON.stringify(optimizeData, null, 2));
+            //console.log('TomTom optimize request:', JSON.stringify(optimizeData, null, 2));
 
             const optimizeRes = await axios.post(optimizeUrl, optimizeData, {
                 headers: {
@@ -45,7 +45,7 @@ export async function GET() {
                 throw error;
             });
 
-            console.log('TomTom optimize response:', JSON.stringify(optimizeRes.data, null, 2));
+            //console.log('TomTom optimize response:', JSON.stringify(optimizeRes.data, null, 2));
 
             const optimizedOrder = optimizeRes.data.optimizedOrder;
             if (!optimizedOrder || !Array.isArray(optimizedOrder) || optimizedOrder.length !== 7) {
@@ -67,20 +67,20 @@ export async function GET() {
                 locations[locations.length - 1], // End: Cennet Sube
             ];
 
-            console.log('Ordered locations:', orderedLocations.map(loc => loc.name));
+            //console.log('Ordered locations:', orderedLocations.map(loc => loc.name));
 
             // Step 2: Fetch detailed route
             const coordinates = orderedLocations
                 .map(loc => `${loc.lat},${loc.lon}`)
                 .join(':');
-            console.log('Route coordinates:', coordinates);
+            //console.log('Route coordinates:', coordinates);
 
             const routeUrl = `https://api.tomtom.com/routing/1/calculateRoute/${coordinates}/json?key=${process.env.TOMTOM_API_KEY}&instructionsType=text&routeRepresentation=polyline&computeTravelTimeFor=all&routeType=fastest&traffic=live`;
 
             const routeRes = await axios.get(routeUrl, {
                 headers: { 'Content-Type': 'application/json' },
             });
-            console.log('TomTom route response:', JSON.stringify(routeRes.data, null, 2));
+            //console.log('TomTom route response:', JSON.stringify(routeRes.data, null, 2));
 
             const route = routeRes.data.routes?.[0];
             if (!route) {
@@ -102,13 +102,25 @@ export async function GET() {
                 };
             }) || [];
 
+            const totalDistance = (route.summary?.lengthInMeters / 1000) || 0;
+            const totalTime = (route.summary?.travelTimeInSeconds / 60) || 0;
+            const totalCost = ((route.summary?.lengthInMeters || 0) / 1000) * 0.4 +
+                ((route.summary?.travelTimeInSeconds || 0) / 60) * 0.6;
+
             return {
                 route: orderedLocations,
-                totalCost: ((route.summary?.lengthInMeters || 0) / 1000) * 0.4 + 
-                          ((route.summary?.travelTimeInSeconds || 0) / 60) * 0.6,
+                metrics: {
+                    totalDistance: totalDistance.toFixed(2) + "km",
+                    totalTime: totalTime.toFixed(2) + "minutes",
+                    totalCost: totalCost.toFixed(2),
+                },
                 travelTime: (route.summary?.travelTimeInSeconds || 0) / 60,
                 geometry: fullGeometry,
                 instructions,
+                segments: route.legs.map((leg: any) => ({
+                    distance: leg.summary.lengthInMeters / 1000,
+                    trafficTime: leg.summary.travelTimeInSeconds / 60
+                }))
             };
         } catch (error) {
             console.error('Error fetching TomTom route:', error);
@@ -122,13 +134,13 @@ export async function GET() {
         return NextResponse.json({ error: 'Failed to fetch route' }, { status: 500 });
     }
 
-    console.log('Parsed TomTom route:', {
+    /* console.log('Parsed TomTom route:', {
         totalCost: routeData.totalCost,
         travelTime: routeData.travelTime,
         instructionCount: routeData.instructions.length,
         geometryLength: routeData.geometry.length,
         routeOrder: routeData.route.map(loc => loc.name),
-    });
+    }); */
 
     return NextResponse.json({
         routeData,

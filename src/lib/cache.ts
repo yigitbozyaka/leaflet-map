@@ -69,7 +69,7 @@ export const fetchTomTomTrafficData = async (locations: Location[]): Promise<voi
             return;
         }
 
-        const response = await fetch('https://map-sigma-nine.vercel.app/api/traffic/data', {
+        const response = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/traffic/data`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
