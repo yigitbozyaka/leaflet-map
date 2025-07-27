@@ -38,7 +38,7 @@ const fetchDistanceWithSteps = async (from: Location, to: Location): Promise<Seg
         return cached;
     }
 
-    const url = `http://localhost:5001/route/v1/driving/${from.lon},${from.lat};${to.lon},${to.lat}?overview=full&geometries=geojson&steps=true`;
+    const url = `${process.env.OSRM_BACKEND_URL}/route/v1/driving/${from.lon},${from.lat};${to.lon},${to.lat}?overview=full&geometries=geojson&steps=true`;
     try {
         const res = await fetch(url);
         if (!res.ok) {
