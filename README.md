@@ -48,7 +48,7 @@ To get a local copy up and running, follow these simple steps.
 4. Create a `.env` file in the root directory and add your API keys and MongoDB connection string:
    ```env
    TOMTOM_API_KEY=your_tomtom_api_key
-   GOOGLE_API_KEY=your_google_api_key
+   GEMINI_API_KEY=your_gemini_api_key
    MONGODB_URI=your_mongodb_connection_string
    NEXT_PUBLIC_BASE_URL=http://localhost:3000
    OSRM_BACKEND_URL=http://localhost:5001
